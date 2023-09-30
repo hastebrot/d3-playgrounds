@@ -11,7 +11,7 @@ export function createIcicle(
     id = Array.isArray(data) ? (d) => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
     parentId = Array.isArray(data) ? (d) => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
     children, // if hierarchical data, given a d in data, returns its children
-    format = ",", // format specifier string or function for values
+    formatValue = ",", // format specifier string or function for values
     value, // given a node d, returns a quantitative value (for area encoding; null for count)
     sort = (a, b) => d3.descending(a.value, b.value), // how to sort nodes prior to layout
     label, // given a node d, returns the name to display on the rectangle
@@ -20,11 +20,6 @@ export function createIcicle(
     linkTarget = "_blank", // the target attribute for links (if any)
     width = 640, // outer width, in pixels
     height = 400, // outer height, in pixels
-    margin = 0, // shorthand for margins
-    marginTop = margin, // top margin, in pixels
-    marginRight = margin, // right margin, in pixels
-    marginBottom = margin, // bottom margin, in pixels
-    marginLeft = margin, // left margin, in pixels
     padding = 1, // cell padding, in pixels
     round = false, // whether to round to exact pixels
     color = d3.interpolateRainbow, // color scheme, if any
@@ -47,17 +42,14 @@ export function createIcicle(
   value == null ? root.count() : root.sum((d) => Math.max(0, value(d)));
 
   // Compute formats.
-  if (typeof format !== "function") format = d3.format(format);
+  if (typeof formatValue !== "function") formatValue = d3.format(formatValue);
 
   // Sort the leaves (typically by descending value for a pleasing layout).
   if (sort != null) root.sort(sort);
 
   // Compute the partition layout. Note that x and y are swapped!
-  d3
-    .partition()
-    .size([height - marginTop - marginBottom, width - marginLeft - marginRight])
-    .padding(padding)
-    .round(round)(root);
+  const layout = d3.partition().size([height, width]).padding(padding).round(round);
+  layout(root);
 
   // Construct a color scale.
   if (color != null) {
@@ -67,7 +59,7 @@ export function createIcicle(
 
   const svg = d3
     .create("svg")
-    .attr("viewBox", [-marginLeft, -marginTop, width, height])
+    .attr("viewBox", [0, 0, width, height])
     .attr("width", width)
     .attr("height", height)
     .attr("style", "max-width: 100%; height: auto; height: intrinsic;")
@@ -96,15 +88,19 @@ export function createIcicle(
     .attr("y", (d) => Math.min(9, (d.x1 - d.x0) / 2))
     .attr("dy", "0.32em");
 
-  if (label != null) text.append("tspan").text((d) => label(d.data, d));
+  if (label != null) {
+    text.append("tspan").text((d) => label(d.data, d));
+  }
 
   text
     .append("tspan")
     .attr("fill-opacity", 0.7)
     .attr("dx", label == null ? null : 3)
-    .text((d) => format(d.value));
+    .text((d) => formatValue(d.value));
 
-  if (title != null) cell.append("title").text((d) => title(d.data, d));
+  if (title != null) {
+    cell.append("title").text((d) => title(d.data, d));
+  }
 
   return svg.node();
 }
