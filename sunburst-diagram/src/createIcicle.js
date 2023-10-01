@@ -7,10 +7,10 @@ export function createIcicle(
   data,
   {
     // data is either tabular (array of objects) or hierarchy (nested objects)
-    path, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
-    id = Array.isArray(data) ? (d) => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
-    parentId = Array.isArray(data) ? (d) => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
-    children, // if hierarchical data, given a d in data, returns its children
+    dataPath, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
+    dataId = Array.isArray(data) ? (d) => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
+    dataParentId = Array.isArray(data) ? (d) => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
+    dataChildren, // if hierarchical data, given a d in data, returns its children
     formatValue = ",", // format specifier string or function for values
     value, // given a node d, returns a quantitative value (for area encoding; null for count)
     sort = (a, b) => d3.descending(a.value, b.value), // how to sort nodes prior to layout
@@ -32,11 +32,11 @@ export function createIcicle(
   // specified as an object {children} with nested objects (a.k.a. the “flare.json”
   // format), and use d3.hierarchy.
   const root =
-    path != null
-      ? d3.stratify().path(path)(data)
-      : id != null || parentId != null
-      ? d3.stratify().id(id).parentId(parentId)(data)
-      : d3.hierarchy(data, children);
+    dataPath != null
+      ? d3.stratify().path(dataPath)(data)
+      : dataId != null || dataParentId != null
+      ? d3.stratify().id(dataId).parentId(dataParentId)(data)
+      : d3.hierarchy(data, dataChildren);
 
   // Compute the values of internal nodes by aggregating from the leaves.
   value == null ? root.count() : root.sum((d) => Math.max(0, value(d)));
@@ -48,7 +48,12 @@ export function createIcicle(
   if (sort != null) root.sort(sort);
 
   // Compute the partition layout. Note that x and y are swapped!
-  const layout = d3.partition().size([height, width]).padding(padding).round(round);
+  const countLevel = 3;
+  const layout = d3
+    .partition()
+    .size([height, ((root.height + 1) * width) / countLevel])
+    .padding(padding)
+    .round(round);
   layout(root);
 
   // Construct a color scale.
@@ -74,7 +79,7 @@ export function createIcicle(
     .attr("target", link == null ? null : linkTarget)
     .attr("transform", (d) => `translate(${d.y0},${d.x0})`);
 
-  cell
+  const rect = cell
     .append("rect")
     .attr("width", (d) => d.y1 - d.y0)
     .attr("height", (d) => d.x1 - d.x0)

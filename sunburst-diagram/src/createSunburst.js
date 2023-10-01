@@ -7,10 +7,10 @@ export function createSunburst(
   data,
   {
     // data is either tabular (array of objects) or hierarchy (nested objects)
-    path, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
-    id = Array.isArray(data) ? (d) => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
-    parentId = Array.isArray(data) ? (d) => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
-    children, // if hierarchical data, given a d in data, returns its children
+    dataPath, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
+    dataId = Array.isArray(data) ? (d) => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
+    dataParentId = Array.isArray(data) ? (d) => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
+    dataChildren, // if hierarchical data, given a d in data, returns its children
     value, // given a node d, returns a quantitative value (for area encoding; null for count)
     sort = (a, b) => d3.descending(a.value, b.value), // how to sort nodes prior to layout
     label, // given a node d, returns the name to display on the rectangle
@@ -33,11 +33,11 @@ export function createSunburst(
   // specified as an object {children} with nested objects (a.k.a. the “flare.json”
   // format), and use d3.hierarchy.
   const root =
-    path != null
-      ? d3.stratify().path(path)(data)
-      : id != null || parentId != null
-      ? d3.stratify().id(id).parentId(parentId)(data)
-      : d3.hierarchy(data, children);
+    dataPath != null
+      ? d3.stratify().path(dataPath)(data)
+      : dataId != null || dataParentId != null
+      ? d3.stratify().id(dataId).parentId(dataParentId)(data)
+      : d3.hierarchy(data, dataChildren);
 
   // Compute the values of internal nodes by aggregating from the leaves.
   value == null ? root.count() : root.sum((d) => Math.max(0, value(d)));
@@ -45,8 +45,11 @@ export function createSunburst(
   // Sort the leaves (typically by descending value for a pleasing layout).
   if (sort != null) root.sort(sort);
 
+  const countLevel = 3;
+  radius = radius / countLevel;
+
   // Compute the partition layout. Note polar coordinates: x is angle and y is radius.
-  const layout = d3.partition().size([endAngle - startAngle, radius]);
+  const layout = d3.partition().size([endAngle - startAngle, root.height + 1]);
   layout(root);
 
   // Construct a color scale.
@@ -60,10 +63,10 @@ export function createSunburst(
     .arc()
     .startAngle((d) => d.x0 + startAngle)
     .endAngle((d) => d.x1 + startAngle)
-    .padAngle((d) => Math.min((d.x1 - d.x0) / 2, (2 * padding) / radius))
-    .padRadius(radius / 2)
-    .innerRadius((d) => d.y0)
-    .outerRadius((d) => d.y1 - padding);
+    .padAngle((d) => Math.min((d.x1 - d.x0) / 2, 0.005))
+    .padRadius(radius * 1.5)
+    .innerRadius((d) => d.y0 * radius)
+    .outerRadius((d) => Math.max(d.y0 * radius, d.y1 * radius - 1));
 
   const svg = d3
     .create("svg")
@@ -82,22 +85,24 @@ export function createSunburst(
     .attr("xlink:href", link == null ? null : (d) => link(d.data, d))
     .attr("target", link == null ? null : linkTarget);
 
-  cell
+  const path = cell
     .append("path")
-    .attr("d", arc)
+    .attr("d", (d) => arc(d))
     .attr("fill", color ? (d) => color(d.ancestors().reverse()[1]?.index) : fill)
-    .attr("fill-opacity", fillOpacity);
+    .attr("fill-opacity", (d) => (d.depth <= 2 ? fillOpacity : 0));
+
+  const labelTransform = (d) => {
+    if (!d.depth) return;
+    const x = (((d.x0 + d.x1) / 2 + startAngle) * 180) / Math.PI;
+    const y = (d.y0 + d.y1) / 2;
+    return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+  };
 
   if (label != null) {
     cell
       .filter((d) => ((d.y0 + d.y1) / 2) * (d.x1 - d.x0) > 10)
       .append("text")
-      .attr("transform", (d) => {
-        if (!d.depth) return;
-        const x = (((d.x0 + d.x1) / 2 + startAngle) * 180) / Math.PI;
-        const y = (d.y0 + d.y1) / 2;
-        return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
-      })
+      .attr("transform", (d) => labelTransform(d))
       .attr("dy", "0.32em")
       .text((d) => label(d.data, d));
   }
