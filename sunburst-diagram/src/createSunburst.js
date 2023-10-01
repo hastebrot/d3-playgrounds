@@ -19,7 +19,7 @@ export function createSunburst(
     linkTarget = "_blank", // the target attribute for links (if any)
     width = 640, // outer width, in pixels
     height = 400, // outer height, in pixels
-    padding = 1, // separation between arcs
+    padding = 0, // separation between arcs
     startAngle = 0, // the starting angle for the sunburst
     endAngle = 2 * Math.PI, // the ending angle for the sunburst
     radius = Math.min(width, height) / 2, // outer radius
@@ -49,7 +49,10 @@ export function createSunburst(
   radius = radius / countLevel;
 
   // Compute the partition layout. Note polar coordinates: x is angle and y is radius.
-  const layout = d3.partition().size([endAngle - startAngle, root.height + 1]);
+  const layout = d3
+    .partition()
+    .size([endAngle - startAngle, root.height + 1])
+    .round(false);
   layout(root);
 
   // Construct a color scale.
@@ -63,10 +66,10 @@ export function createSunburst(
     .arc()
     .startAngle((d) => d.x0 + startAngle)
     .endAngle((d) => d.x1 + startAngle)
-    .padAngle((d) => Math.min((d.x1 - d.x0) / 2, 0.005))
-    .padRadius(radius * 1.5)
+    .padAngle((d) => Math.min((d.x1 - d.x0) / 2))
+    .padRadius(padding * radius)
     .innerRadius((d) => d.y0 * radius)
-    .outerRadius((d) => Math.max(d.y0 * radius, d.y1 * radius - 1));
+    .outerRadius((d) => Math.max(d.y0 * radius, d.y1 * radius - padding));
 
   const svg = d3
     .create("svg")

@@ -20,8 +20,7 @@ export function createIcicle(
     linkTarget = "_blank", // the target attribute for links (if any)
     width = 640, // outer width, in pixels
     height = 400, // outer height, in pixels
-    padding = 1, // cell padding, in pixels
-    round = false, // whether to round to exact pixels
+    padding = 0, // cell padding, in pixels
     color = d3.interpolateRainbow, // color scheme, if any
     fill = "#ccc", // fill for node rects (if no color encoding)
     fillOpacity = 0.6, // fill opacity for node rects
@@ -53,7 +52,7 @@ export function createIcicle(
     .partition()
     .size([height, ((root.height + 1) * width) / countLevel])
     .padding(padding)
-    .round(round);
+    .round(true);
   layout(root);
 
   // Construct a color scale.
