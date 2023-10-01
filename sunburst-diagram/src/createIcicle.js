@@ -7,11 +7,11 @@ export function createIcicle(
   data,
   {
     // data is either tabular (array of objects) or hierarchy (nested objects)
-    path, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
-    id = Array.isArray(data) ? (d) => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
-    parentId = Array.isArray(data) ? (d) => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
-    children, // if hierarchical data, given a d in data, returns its children
-    format = ",", // format specifier string or function for values
+    dataPath, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
+    dataId = Array.isArray(data) ? (d) => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
+    dataParentId = Array.isArray(data) ? (d) => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
+    dataChildren, // if hierarchical data, given a d in data, returns its children
+    formatValue = ",", // format specifier string or function for values
     value, // given a node d, returns a quantitative value (for area encoding; null for count)
     sort = (a, b) => d3.descending(a.value, b.value), // how to sort nodes prior to layout
     label, // given a node d, returns the name to display on the rectangle
@@ -20,13 +20,7 @@ export function createIcicle(
     linkTarget = "_blank", // the target attribute for links (if any)
     width = 640, // outer width, in pixels
     height = 400, // outer height, in pixels
-    margin = 0, // shorthand for margins
-    marginTop = margin, // top margin, in pixels
-    marginRight = margin, // right margin, in pixels
-    marginBottom = margin, // bottom margin, in pixels
-    marginLeft = margin, // left margin, in pixels
-    padding = 1, // cell padding, in pixels
-    round = false, // whether to round to exact pixels
+    padding = 0, // cell padding, in pixels
     color = d3.interpolateRainbow, // color scheme, if any
     fill = "#ccc", // fill for node rects (if no color encoding)
     fillOpacity = 0.6, // fill opacity for node rects
@@ -37,27 +31,29 @@ export function createIcicle(
   // specified as an object {children} with nested objects (a.k.a. the “flare.json”
   // format), and use d3.hierarchy.
   const root =
-    path != null
-      ? d3.stratify().path(path)(data)
-      : id != null || parentId != null
-      ? d3.stratify().id(id).parentId(parentId)(data)
-      : d3.hierarchy(data, children);
+    dataPath != null
+      ? d3.stratify().path(dataPath)(data)
+      : dataId != null || dataParentId != null
+      ? d3.stratify().id(dataId).parentId(dataParentId)(data)
+      : d3.hierarchy(data, dataChildren);
 
   // Compute the values of internal nodes by aggregating from the leaves.
   value == null ? root.count() : root.sum((d) => Math.max(0, value(d)));
 
   // Compute formats.
-  if (typeof format !== "function") format = d3.format(format);
+  if (typeof formatValue !== "function") formatValue = d3.format(formatValue);
 
   // Sort the leaves (typically by descending value for a pleasing layout).
   if (sort != null) root.sort(sort);
 
   // Compute the partition layout. Note that x and y are swapped!
-  d3
+  const countLevel = 4;
+  const layout = d3
     .partition()
-    .size([height - marginTop - marginBottom, width - marginLeft - marginRight])
+    .size([height, ((root.height + 1) * width) / countLevel])
     .padding(padding)
-    .round(round)(root);
+    .round(true);
+  layout(root);
 
   // Construct a color scale.
   if (color != null) {
@@ -67,7 +63,7 @@ export function createIcicle(
 
   const svg = d3
     .create("svg")
-    .attr("viewBox", [-marginLeft, -marginTop, width, height])
+    .attr("viewBox", [0, 0, width, height])
     .attr("width", width)
     .attr("height", height)
     .attr("style", "max-width: 100%; height: auto; height: intrinsic;")
@@ -82,11 +78,19 @@ export function createIcicle(
     .attr("target", link == null ? null : linkTarget)
     .attr("transform", (d) => `translate(${d.y0},${d.x0})`);
 
-  cell
+  const rectFill = (d) => {
+    const c = color(d.ancestors().reverse()[1]?.index);
+    if (d.depth >= 2) {
+      return d3.color(c).darker();
+    }
+    return c;
+  };
+
+  const rect = cell
     .append("rect")
     .attr("width", (d) => d.y1 - d.y0)
     .attr("height", (d) => d.x1 - d.x0)
-    .attr("fill", color ? (d) => color(d.ancestors().reverse()[1]?.index) : fill)
+    .attr("fill", color ? (d) => rectFill(d) : fill)
     .attr("fill-opacity", fillOpacity);
 
   const text = cell
@@ -96,15 +100,19 @@ export function createIcicle(
     .attr("y", (d) => Math.min(9, (d.x1 - d.x0) / 2))
     .attr("dy", "0.32em");
 
-  if (label != null) text.append("tspan").text((d) => label(d.data, d));
+  if (label != null) {
+    text.append("tspan").text((d) => label(d.data, d));
+  }
 
   text
     .append("tspan")
     .attr("fill-opacity", 0.7)
     .attr("dx", label == null ? null : 3)
-    .text((d) => format(d.value));
+    .text((d) => formatValue(d.value));
 
-  if (title != null) cell.append("title").text((d) => title(d.data, d));
+  if (title != null) {
+    cell.append("title").text((d) => title(d.data, d));
+  }
 
   return svg.node();
 }
