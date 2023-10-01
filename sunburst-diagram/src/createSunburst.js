@@ -85,22 +85,35 @@ export function createSunburst(
     .attr("xlink:href", link == null ? null : (d) => link(d.data, d))
     .attr("target", link == null ? null : linkTarget);
 
+  const pathFill = (d) => {
+    const c = color(d.ancestors().reverse()[1]?.index);
+    if (d.depth === 2) {
+      return d3.color(c).darker();
+    }
+    return c;
+  };
+
   const path = cell
     .append("path")
     .attr("d", (d) => arc(d))
-    .attr("fill", color ? (d) => color(d.ancestors().reverse()[1]?.index) : fill)
+    .attr("fill", color ? (d) => pathFill(d) : fill)
     .attr("fill-opacity", (d) => (d.depth <= 2 ? fillOpacity : 0));
 
   const labelTransform = (d) => {
     if (!d.depth) return;
     const x = (((d.x0 + d.x1) / 2 + startAngle) * 180) / Math.PI;
-    const y = (d.y0 + d.y1) / 2;
+    const y = ((d.y0 + d.y1) / 2) * radius;
     return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+  };
+
+  const labelVisible = (d) => {
+    if (d.depth > 2) return;
+    return (((d.y0 + d.y1) * radius) / 2) * (d.x1 - d.x0) > 10;
   };
 
   if (label != null) {
     cell
-      .filter((d) => ((d.y0 + d.y1) / 2) * (d.x1 - d.x0) > 10)
+      .filter((d) => labelVisible(d))
       .append("text")
       .attr("transform", (d) => labelTransform(d))
       .attr("dy", "0.32em")

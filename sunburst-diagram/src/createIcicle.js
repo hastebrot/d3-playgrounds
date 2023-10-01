@@ -79,11 +79,19 @@ export function createIcicle(
     .attr("target", link == null ? null : linkTarget)
     .attr("transform", (d) => `translate(${d.y0},${d.x0})`);
 
+  const rectFill = (d) => {
+    const c = color(d.ancestors().reverse()[1]?.index);
+    if (d.depth === 2) {
+      return d3.color(c).darker();
+    }
+    return c;
+  };
+
   const rect = cell
     .append("rect")
     .attr("width", (d) => d.y1 - d.y0)
     .attr("height", (d) => d.x1 - d.x0)
-    .attr("fill", color ? (d) => color(d.ancestors().reverse()[1]?.index) : fill)
+    .attr("fill", color ? (d) => rectFill(d) : fill)
     .attr("fill-opacity", fillOpacity);
 
   const text = cell
