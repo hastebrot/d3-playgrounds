@@ -45,7 +45,7 @@ export function createSunburst(
   // Sort the leaves (typically by descending value for a pleasing layout).
   if (sort != null) root.sort(sort);
 
-  const countLevel = 3;
+  const countLevel = 4;
   radius = radius / countLevel;
 
   // Compute the partition layout. Note polar coordinates: x is angle and y is radius.
@@ -87,7 +87,7 @@ export function createSunburst(
 
   const pathFill = (d) => {
     const c = color(d.ancestors().reverse()[1]?.index);
-    if (d.depth === 2) {
+    if (d.depth >= 2) {
       return d3.color(c).darker();
     }
     return c;
@@ -97,7 +97,7 @@ export function createSunburst(
     .append("path")
     .attr("d", (d) => arc(d))
     .attr("fill", color ? (d) => pathFill(d) : fill)
-    .attr("fill-opacity", (d) => (d.depth <= 2 ? fillOpacity : 0));
+    .attr("fill-opacity", (d) => (d.depth < countLevel ? fillOpacity : 0));
 
   const labelTransform = (d) => {
     if (!d.depth) return;
@@ -107,7 +107,7 @@ export function createSunburst(
   };
 
   const labelVisible = (d) => {
-    if (d.depth > 2) return;
+    if (!(d.depth < countLevel)) return;
     return (((d.y0 + d.y1) * radius) / 2) * (d.x1 - d.x0) > 10;
   };
 

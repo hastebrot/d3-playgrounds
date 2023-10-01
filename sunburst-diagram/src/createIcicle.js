@@ -48,7 +48,7 @@ export function createIcicle(
   if (sort != null) root.sort(sort);
 
   // Compute the partition layout. Note that x and y are swapped!
-  const countLevel = 3;
+  const countLevel = 4;
   const layout = d3
     .partition()
     .size([height, ((root.height + 1) * width) / countLevel])
@@ -81,7 +81,7 @@ export function createIcicle(
 
   const rectFill = (d) => {
     const c = color(d.ancestors().reverse()[1]?.index);
-    if (d.depth === 2) {
+    if (d.depth >= 2) {
       return d3.color(c).darker();
     }
     return c;
