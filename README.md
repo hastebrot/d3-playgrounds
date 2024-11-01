@@ -2,8 +2,8 @@
 
 ### sources
 
-| Directory |
-| --- |
+| directory |
+| :--- |
 | [sources/sunburst-diagram/](sources/sunburst-diagram/) |
 
 ### usage
